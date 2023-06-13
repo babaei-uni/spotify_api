@@ -1,3 +1,4 @@
+import sqlite3
 from dotenv import load_dotenv
 import os
 import base64
@@ -6,10 +7,12 @@ import json
 
 load_dotenv()
 
+
 client_id = os.getenv("Client_ID")
 client_secret = os.getenv("Client_secret")
 
 
+# this is the first function of the project to get the token
 def get_token():
     auth_string = client_id + ":" + client_secret
     auth_bytes = auth_string.encode("utf-8")
@@ -34,11 +37,13 @@ def get_token():
     return token
 
 
+# function get_auth_header : to get the header of the token
 def get_auth_header(token):
     return {"Authorization": "Bearer " + token}
 
 
-def search_for_artist(token, artist_name, id_artis):
+# function search_for_artist : to find artist id by their name and save their unique id in a dictionary
+def search_for_artist(token, artist_name, artists_id):
     url = "https://api.spotify.com/v1/search"
     headers = get_auth_header(token)
     query = f"?q={artist_name}&type=artist&limit=1"
@@ -48,9 +53,10 @@ def search_for_artist(token, artist_name, id_artis):
     if len(json_result) <= 0:
         print("No artist found")
         return None
-    id_artis[artist_name] = (json_result[0]["id"], json_result[0]["name"])
+    artists_id[artist_name] = (json_result[0]["id"], json_result[0]["name"])
 
 
+# function get_songs_by_artist : to get the songs of the artist by its unique id
 def get_songs_by_artist(token, artist_id):
     url = f"https://api.spotify.com/v1/artists/{artist_id}/top-tracks?country=US"
     headers = get_auth_header(token)
@@ -59,6 +65,7 @@ def get_songs_by_artist(token, artist_id):
     return json_result
 
 
+# function Json_extraction : to extract the data we need from the json we take from the function get_songs_by_artist
 def Json_extraction(json):
     # you can see a sample of the json in the file songs.txt
     album_realese_date = json["album"]["release_date"]
@@ -88,12 +95,12 @@ def Json_extraction(json):
 
 token = get_token()
 
-# i did it once and at last i saved the artists_id in the file artist_id.json so i dont have to run it again
 
-
+# i did get_artist_id_from_txt once and at last i saved the artists_id in the file artist_id.json so i dont have to run it again
 def get_artist_id_from_txt(token):
     list_of_best_US_artists = []
-    f = open("list_of_best_US_singers.txt")  # this file is a list of best US singers
+    # this file is a list of best US singers
+    f = open("list_of_best_US_singers.txt")
     for i in f:
         if i[
             0
@@ -131,9 +138,7 @@ except:
 # this is data base part :))
 
 
-import sqlite3
-
-conn = sqlite3.connect("spotify.db")
+conn = sqlite3.connect("spotify2.db")
 cur = conn.cursor()
 
 
@@ -148,6 +153,7 @@ def delete_table():
     )
 
 
+# if we want to delete the previous tables of spotify.db we can run delete_table
 delete_table_stage = input(
     "Do you want to delete the previous tables of spotify.db? (y/n) : "
 )
@@ -155,6 +161,7 @@ if delete_table_stage == "y":
     delete_table()
 
 
+# Create tables in the database :
 def create_table():
     cur.executescript(
         """
@@ -182,12 +189,14 @@ def create_table():
     )
 
 
-create_table_stage = input("Do you want to create the tables of spotify.db? (y/n) : ")
+create_table_stage = input(
+    "Do you want to create the tables of spotify.db? (y/n) : ")
 
 if create_table_stage == "y":
     create_table()
 
 
+# insert data into the tables
 def insert_artist(artist_name):
     cur.execute(
         """INSERT OR IGNORE INTO Artist (name) VALUES (?)""",
@@ -234,20 +243,20 @@ def insert_track(
     )
 
 
-for i in ids_artist:
-    name = ids_artist[i][1]
-    id = ids_artist[i][0]
+for artist in ids_artist:
+    name = ids_artist[artist][1]
+    id = ids_artist[artist][0]
     exist_in_db = cur.execute(
         """SELECT id FROM Artist WHERE name = ?""", (name,)
     ).fetchone()
     if exist_in_db is not None:
         # if the artist is already in the database we will skip it,because it means that we already have the data of his songs from the previous runs
         continue
-    print(f"extracting data for {i}")
+    print(f"extracting data for {artist}")
     a = get_songs_by_artist(token, id)
 
-    for i in range(len(a["tracks"])):
-        b = Json_extraction(a["tracks"][i])
+    for song in range(len(a["tracks"])):
+        b = Json_extraction(a["tracks"][song])
         # i want to check if b[3] is exist or not in db
         exist_in_db = cur.execute(
             """SELECT id FROM Artist WHERE name = ?""", (b[3],)
