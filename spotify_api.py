@@ -138,7 +138,7 @@ except:
 # this is data base part :))
 
 
-conn = sqlite3.connect("spotify2.db")
+conn = sqlite3.connect("spotify.db")
 cur = conn.cursor()
 
 
